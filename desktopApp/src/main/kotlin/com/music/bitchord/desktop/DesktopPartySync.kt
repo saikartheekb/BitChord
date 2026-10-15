@@ -191,8 +191,23 @@ internal class DesktopPartySync(
      */
     fun onLocalAutomaticAdvance(expectedVideoId: String? = null) {
         val party = DesktopListenTogether.state.value
-        if (!party.inParty || DesktopAutoplay.supplierId(party) != party.you?.memberId) return
-        onLocalIntent(expectedVideoId)
+        if (!party.inParty) return
+        if (DesktopAutoplay.supplierId(party) == party.you?.memberId) {
+            onLocalIntent(expectedVideoId)
+            return
+        }
+
+        // This device has already begun the next item, but only the elected
+        // supplier may announce it. Keep reconcile from pulling this player
+        // back to the old party track while that supplier reaches the same
+        // boundary and publishes the advance. The seq gate ends the hold as
+        // soon as the party confirms a track change; the quiet timeout keeps a
+        // missing/disconnected supplier from leaving this device detached.
+        val localTrackId = expectedVideoId ?: engine.state.value.song?.videoId ?: return
+        if (party.playback.track?.videoId == localTrackId) return
+        quietUntilMs = nowMs() + INTENT_QUIET_MS
+        awaitPlaybackSeq = party.playback.seq + 1
+        awaitQueueSeq = party.queue.seq
     }
 
     /** In a host-locked party, play/pause affects only this computer. */
