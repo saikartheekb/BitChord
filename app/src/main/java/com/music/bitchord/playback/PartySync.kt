@@ -37,9 +37,9 @@ import kotlin.math.abs
  *  - **Outbound** is [onLocalIntent], called only from [PlaybackService]'s
  *    `SessionPlayer` — the [androidx.media3.common.ForwardingPlayer] every
  *    *user* action passes through, wherever it came from: the app, the
- *    notification, a headset button, Android Auto. Plus the one thing that is
- *    the user's intent without being their action, the queue moving on by
- *    itself at the end of a track.
+ *    notification, a headset button, Android Auto. The elected AutoPlay
+ *    supplier also reports an automatic queue advance; other devices can reach
+ *    that boundary at different times and must not overwrite its position.
  *  - **Inbound** is [reconcile], which writes straight to the ExoPlayer,
  *    underneath that wrapper. So nothing this class does to the player can ever
  *    come back to it as an intent.
@@ -286,6 +286,21 @@ class PartySync(
             delay(PUBLISH_DEBOUNCE_MS)
             publish()
         }
+    }
+
+    /**
+     * An automatic queue advance can happen independently on every device in a
+     * party. Only the elected AutoPlay supplier may publish that transition:
+     * a slower device reporting its own start position after another device
+     * has already advanced would otherwise rewind the shared playhead.
+     *
+     * Manual controls still use [onLocalIntent] and remain available to every
+     * member the server allows to control playback.
+     */
+    fun onLocalAutomaticAdvance() {
+        val party = ListenTogether.state.value
+        if (!party.inParty || autoplaySupplierId(party) != party.you?.memberId) return
+        onLocalIntent()
     }
 
     /** A queue row started dragging in the UI. See [onLocalIntent]. */

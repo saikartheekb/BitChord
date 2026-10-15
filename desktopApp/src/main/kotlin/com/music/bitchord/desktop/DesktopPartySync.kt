@@ -184,6 +184,17 @@ internal class DesktopPartySync(
         }
     }
 
+    /**
+     * Each device can advance its local queue when a track ends. Only the
+     * elected AutoPlay supplier reports that automatic transition, so a slower
+     * device cannot replace the party's new playhead with its own start point.
+     */
+    fun onLocalAutomaticAdvance(expectedVideoId: String? = null) {
+        val party = DesktopListenTogether.state.value
+        if (!party.inParty || DesktopAutoplay.supplierId(party) != party.you?.memberId) return
+        onLocalIntent(expectedVideoId)
+    }
+
     /** In a host-locked party, play/pause affects only this computer. */
     fun handleLockedPlayPause(): Boolean {
         val party = DesktopListenTogether.state.value

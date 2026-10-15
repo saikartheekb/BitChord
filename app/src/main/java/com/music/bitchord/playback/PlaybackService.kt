@@ -961,13 +961,13 @@ class PlaybackService : MediaLibraryService() {
             // keeping the timeline clean and ensuring REPEAT_MODE_ALL loops only CONTEXT items.
             QueueCoordinator.consumePlayedUserQueue(exoPlayer)
 
-            // The queue moving on by itself. Nobody pressed anything, but it
-            // is still this device deciding what the party plays next, and no
-            // other path reports it: an automatic advance never passes through
-            // the session wrapper. A skip does pass through it, and is reported
-            // there; publishing is debounced, so being told twice costs nothing.
+            // An automatic advance never passes through the session wrapper.
+            // Every device can reach this callback, but PartySync lets only the
+            // elected supplier publish so a lagging device cannot reset the
+            // party's newly advanced playhead. A user skip is reported by the
+            // wrapper above instead.
             if (reason == Player.MEDIA_ITEM_TRANSITION_REASON_AUTO) {
-                partySync?.onLocalIntent()
+                partySync?.onLocalAutomaticAdvance()
             }
             autoplayLoadJob?.cancel()
             autoplayLoadJob = null

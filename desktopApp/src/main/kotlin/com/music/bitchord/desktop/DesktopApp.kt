@@ -819,14 +819,18 @@ fun BitChordDesktopApp() {
     }
 
     /** Opens whatever the queue is currently pointing at. */
-    fun playCurrent(startPlaying: Boolean = true) {
+    fun playCurrent(startPlaying: Boolean = true, automaticAdvance: Boolean = false) {
         val song = liveQueue.current ?: return
         selectedSong = song
         history = (listOf(song) + history.filterNot { it.videoId == song.videoId }).take(50)
         saveQueue()
         persistence.saveHistory(history)
         playbackEngine.load(song, startPlaying)
-        partySyncHolder[0]?.onLocalIntent(song.videoId)
+        if (automaticAdvance) {
+            partySyncHolder[0]?.onLocalAutomaticAdvance(song.videoId)
+        } else {
+            partySyncHolder[0]?.onLocalIntent(song.videoId)
+        }
         scope.launch { DesktopScrobbling.updateNowPlaying(song) }
     }
 
@@ -1362,15 +1366,23 @@ fun BitChordDesktopApp() {
     }
 
     fun playNext() {
+        advanceQueue(automaticAdvance = false)
+    }
+
+    fun playNextAutomatically() {
+        advanceQueue(automaticAdvance = true)
+    }
+
+    fun advanceQueue(automaticAdvance: Boolean) {
         if (DesktopListenTogether.state.value.controlsLocked) return
         when {
             liveQueue.hasNext -> {
                 liveQueue = liveQueue.next()
-                playCurrent()
+                playCurrent(automaticAdvance = automaticAdvance)
             }
             repeatMode == DesktopRepeatMode.ALL && liveQueue.songs.isNotEmpty() -> {
                 liveQueue = liveQueue.copy(index = 0)
-                playCurrent()
+                playCurrent(automaticAdvance = automaticAdvance)
             }
             DesktopAutoplay.enabled(DesktopListenTogether.state.value, autoplay) ->
                 loadAutoplaySongs(playFirst = true)
@@ -1558,7 +1570,7 @@ fun BitChordDesktopApp() {
                         song?.let { startSong(it, true) }
                     }
                 } else {
-                    playNext()
+                    playNextAutomatically()
                 }
             },
             onCrossfaded = { song ->
