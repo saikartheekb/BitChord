@@ -1365,14 +1365,6 @@ fun BitChordDesktopApp() {
         }
     }
 
-    fun playNext() {
-        advanceQueue(automaticAdvance = false)
-    }
-
-    fun playNextAutomatically() {
-        advanceQueue(automaticAdvance = true)
-    }
-
     fun advanceQueue(automaticAdvance: Boolean) {
         if (DesktopListenTogether.state.value.controlsLocked) return
         when {
@@ -1387,6 +1379,14 @@ fun BitChordDesktopApp() {
             DesktopAutoplay.enabled(DesktopListenTogether.state.value, autoplay) ->
                 loadAutoplaySongs(playFirst = true)
         }
+    }
+
+    fun playNext() {
+        advanceQueue(automaticAdvance = false)
+    }
+
+    fun playNextAutomatically() {
+        advanceQueue(automaticAdvance = true)
     }
 
     fun playPrevious() {
@@ -1808,6 +1808,7 @@ fun BitChordDesktopApp() {
             }
         }
     }
+
     val playback by playbackEngine.state.collectAsState()
 
     // The shared player reads the playhead off this one object, and only where it
