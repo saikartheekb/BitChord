@@ -227,9 +227,74 @@ jobs:
           name: macos-${{ matrix.arch }}-artifacts
           path: dist/*
 
+  android:
+    name: Android · APK
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: gradle
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Configure APK signing
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        run: |
+          umask 077
+          printf '%s' "$KEYSTORE_BASE64" | base64 --decode > bitchord-release.jks
+          {
+            printf 'storeFile=bitchord-release.jks\n'
+            printf 'storePassword=%s\n' "$KEYSTORE_PASSWORD"
+            printf 'keyAlias=%s\n' "$KEY_ALIAS"
+            printf 'keyPassword=%s\n' "$KEY_PASSWORD"
+          } > keystore.properties
+
+      - name: Build signed APKs
+        run: ./gradlew assembleProdRelease
+
+      - name: Name APKs for the release
+        env:
+          VERSION: ${{ github.ref_name }}
+        run: |
+          python3 - <<'PY'
+          import json
+          import os
+          import shutil
+          from pathlib import Path
+
+          version = os.environ["VERSION"].removeprefix("v")
+          output = Path("app/build/outputs/apk/prod/release")
+          metadata = json.loads((output / "output-metadata.json").read_text())
+          dist = Path("dist")
+          dist.mkdir(exist_ok=True)
+          universal = 0
+          for element in metadata["elements"]:
+              abi = next((item["value"] for item in element["filters"] if item["filterType"] == "ABI"), None)
+              name = f"BitChord-v{version}_{abi}.apk" if abi else f"BitChord-v{version}.apk"
+              shutil.copy2(output / element["outputFile"], dist / name)
+              universal += abi is None
+          if universal != 1:
+              raise SystemExit(f"Expected one universal APK, found {universal}")
+          PY
+          ls -lh dist
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: android-artifacts
+          path: dist/*.apk
+
   release:
     name: Publish
-    needs: [linux, windows, macos]
+    needs: [linux, windows, macos, android]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/download-artifact@v4
@@ -247,6 +312,10 @@ jobs:
           tag_name: ${{ github.ref_name }}
           name: BitChord ${{ github.ref_name }}
           draft: true
+          body: |
+            Fixes Listen Together automatic song advances briefly jumping back to the previous track.
+
+            Android APKs are signed with this fork's key. Android will not install them over the original project's APK; uninstall the original app first. Keep the fork's signing key for future updates.
           files: dist/*
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
