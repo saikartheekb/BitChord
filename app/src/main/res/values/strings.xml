@@ -1008,6 +1008,10 @@
 
     <string name="lyrics_debug_logs_subtitle">Show live API queries and scraper activity in the lyrics panel</string>
 
+    <string name="lyrics_original_title">Search lyrics using the original title</string>
+
+    <string name="lyrics_original_title_desc">Restore the original YouTube title before searching, so translated titles can still find lyrics</string>
+
     <string name="shelf_trending_community_playlists">Trending community playlists</string>
 
     <string name="shelf_featured_playlists_for_you">Featured playlists for you</string>
